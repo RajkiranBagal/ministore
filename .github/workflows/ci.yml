@@ -37,3 +37,19 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Runs ONLY after `verify` succeeds (needs: verify) and ONLY on main.
+  # If lint/test/build fail, this job never runs → no deploy of broken code.
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel (production)
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

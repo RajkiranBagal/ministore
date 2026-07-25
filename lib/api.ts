@@ -19,3 +19,12 @@ export async function fetchProducts(): Promise<Product[]> {
   const data: ProductsResponse = await res.json();
   return data.products;
 }
+
+export async function fetchProduct(id: string | number): Promise<Product> {
+  // DummyJSON returns a SINGLE product object here (not wrapped in { products }).
+  const res = await fetch(`https://dummyjson.com/products/${id}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch product ${id}: ${res.status}`);
+  }
+  return res.json();
+}

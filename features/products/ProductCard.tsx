@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import { memo } from "react";
+import Button from "@/components/Button/Button";
+import { useAppDispatch } from "@/store/hooks";
+import { addItem } from "@/features/cart/cartSlice";
 import { Product } from "./types";
 
 type ProductCardProps = {
@@ -9,8 +12,10 @@ type ProductCardProps = {
 };
 
 function ProductCard({ product }: ProductCardProps) {
+  const dispatch = useAppDispatch();
+
   return (
-    <div className="group rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md">
+    <div className="group flex flex-col rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="relative mb-3 aspect-square overflow-hidden rounded-md bg-gray-100">
         <Image
           src={product.thumbnail}
@@ -43,12 +48,25 @@ function ProductCard({ product }: ProductCardProps) {
           ★ {product.rating.toFixed(1)}
         </span>
       </div>
+
+      <Button
+        className="mt-3 w-full"
+        aria-label={`Add ${product.title} to cart`}
+        onClick={() =>
+          dispatch(
+            addItem({
+              id: product.id,
+              title: product.title,
+              price: product.price,
+              thumbnail: product.thumbnail,
+            })
+          )
+        }
+      >
+        Add to cart
+      </Button>
     </div>
   );
 }
 
-// React.memo skips re-rendering this card when the parent (the grid)
-// re-renders for unrelated reasons — e.g. typing in the search box — as
-// long as this card's `product` prop hasn't changed. This is THE product-
-// card performance answer.
 export default memo(ProductCard);

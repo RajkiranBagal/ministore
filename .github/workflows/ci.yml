@@ -1,0 +1,39 @@
+name: CI
+
+# When to run this pipeline: on every push to main, and on every PR into main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest # a fresh Linux VM GitHub spins up for us
+
+    steps:
+      # 1. Pull your repo code into the VM.
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Install Node, and cache npm downloads between runs for speed.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # 3. Install dependencies exactly from package-lock.json (reproducible).
+      - name: Install dependencies
+        run: npm ci
+
+      # 4-6. The actual quality gates. If any fails, the whole run fails
+      #      and the commit/PR is flagged with a red X.
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

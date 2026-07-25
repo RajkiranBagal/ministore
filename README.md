@@ -2,7 +2,7 @@
 
 A small but production-shaped e-commerce storefront: a searchable product catalog, server-rendered product pages, and a Redux-powered cart with live totals. Built to exercise the full modern React/Next.js toolchain end to end.
 
-**Live demo:** _(add your Vercel URL here)_
+**Live demo:** [ministore-pi.vercel.app](https://ministore-pi.vercel.app/)
 
 ---
 
@@ -17,15 +17,15 @@ A small but production-shaped e-commerce storefront: a searchable product catalo
 
 ## Tech stack & why
 
-| Choice | Why |
-| --- | --- |
-| **Next.js 16 (App Router)** | File-system routing + Server Components. The product grid is a client island; product detail is server-rendered for SEO and fast first paint. |
-| **TypeScript** | End-to-end type safety — API responses, component props, Redux state. |
-| **Redux Toolkit** | Cart is shared, cross-page domain state. Slice + Immer keep reducers concise and immutable. UI-only state (e.g. cart drawer open/closed) stays in local `useState`. |
-| **Tailwind CSS** | Fast, responsive styling co-located with markup. |
-| **Storybook** | Components documented and browsable in isolation, with the a11y addon auditing each. |
-| **Jest + React Testing Library** | Unit tests for pure logic/reducers, behavior tests for components (queried by role/text, not implementation). |
-| **GitHub Actions** | Automated quality gate — nothing merges without passing lint + tests + build. |
+| Choice                           | Why                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Next.js 16 (App Router)**      | File-system routing + Server Components. The product grid is a client island; product detail is server-rendered for SEO and fast first paint.                       |
+| **TypeScript**                   | End-to-end type safety — API responses, component props, Redux state.                                                                                               |
+| **Redux Toolkit**                | Cart is shared, cross-page domain state. Slice + Immer keep reducers concise and immutable. UI-only state (e.g. cart drawer open/closed) stays in local `useState`. |
+| **Tailwind CSS**                 | Fast, responsive styling co-located with markup.                                                                                                                    |
+| **Storybook**                    | Components documented and browsable in isolation, with the a11y addon auditing each.                                                                                |
+| **Jest + React Testing Library** | Unit tests for pure logic/reducers, behavior tests for components (queried by role/text, not implementation).                                                       |
+| **GitHub Actions**               | Automated quality gate — nothing merges without passing lint + tests + build.                                                                                       |
 
 ## Architecture
 
@@ -60,12 +60,12 @@ npm run dev        # http://localhost:3000
 
 ## Scripts
 
-| Command | Does |
-| --- | --- |
-| `npm run dev` | Start the dev server |
-| `npm run build` | Production build |
-| `npm test` | Run the Jest test suite |
-| `npm run lint` | Lint with ESLint |
+| Command             | Does                      |
+| ------------------- | ------------------------- |
+| `npm run dev`       | Start the dev server      |
+| `npm run build`     | Production build          |
+| `npm test`          | Run the Jest test suite   |
+| `npm run lint`      | Lint with ESLint          |
 | `npm run storybook` | Launch Storybook at :6006 |
 
 ## Data source

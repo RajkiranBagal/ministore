@@ -2,19 +2,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { fetchProduct } from "@/lib/api";
+import { getProduct } from "@/lib/products";
 import AddToCartButton from "@/features/cart/AddToCartButton";
 
-// params is a Promise in Next 16 — this is the key modern-API detail.
 type Props = {
   params: Promise<{ id: string }>;
 };
 
-// Runs on the SERVER before the page renders. Sets the <title> and meta
-// description per-product — real per-page SEO you can't get from client render.
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const product = await fetchProduct(id).catch(() => null);
+  const product = await getProduct(Number(id));
   if (!product) return { title: "Product not found — MiniStore" };
   return {
     title: `${product.title} — MiniStore`,
@@ -22,14 +19,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// An ASYNC Server Component: it can await data directly, no useEffect/useState.
-// The fetch happens on the server; the browser receives finished HTML.
 export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
-  const product = await fetchProduct(id).catch(() => null);
+  // Direct database query — no fetch(), no API endpoint. The server component
+  // reads Postgres itself. `id` comes from the URL as a string, so we convert.
+  const product = await getProduct(Number(id));
 
-  // notFound() renders the 404 page and stops. It returns `never`, so after
-  // this line TypeScript knows `product` is non-null.
   if (!product) notFound();
 
   return (

@@ -11,6 +11,11 @@ jobs:
   verify:
     runs-on: ubuntu-latest # a fresh Linux VM GitHub spins up for us
 
+    # The build (and `prisma generate`) need DATABASE_URL present. The build
+    # doesn't actually connect to the DB — it just needs the var to exist.
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
     steps:
       # 1. Pull your repo code into the VM.
       - name: Checkout code

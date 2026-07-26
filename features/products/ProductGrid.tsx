@@ -20,7 +20,10 @@ export default function ProductGrid() {
   // FROM THE SERVER. The filtering now happens in Postgres, not the browser.
   useEffect(() => {
     let cancelled = false;
-    setStatus("loading");
+    // Note: we intentionally don't reset to "loading" here — keeping the
+    // previous results visible while the new search loads avoids a flash on
+    // every keystroke (and calling setState synchronously in an effect is a
+    // React anti-pattern the linter flags).
     fetchProducts(debouncedQuery)
       .then((data) => {
         if (cancelled) return;

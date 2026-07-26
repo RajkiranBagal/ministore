@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchProducts } from "@/lib/api";
 import { useDebounce } from "@/lib/useDebounce";
 import { Product } from "./types";
@@ -13,12 +13,15 @@ export default function ProductGrid() {
   const [status, setStatus] = useState<Status>("loading");
   const [query, setQuery] = useState("");
 
-  // Filtering runs 300ms after the last keystroke, not on every one.
+  // Debounced so we hit the API after typing pauses, not on every keystroke.
   const debouncedQuery = useDebounce(query, 300);
 
+  // Re-runs whenever the debounced search changes → fetches matching products
+  // FROM THE SERVER. The filtering now happens in Postgres, not the browser.
   useEffect(() => {
     let cancelled = false;
-    fetchProducts()
+    setStatus("loading");
+    fetchProducts(debouncedQuery)
       .then((data) => {
         if (cancelled) return;
         setProducts(data);
@@ -30,32 +33,7 @@ export default function ProductGrid() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // useMemo recomputes the filtered list ONLY when `products` or the DEBOUNCED
-  // query change. Note `query` is not a dependency — so typing fast doesn't
-  // re-filter 100 items on every keystroke, only after the pause.
-  const filtered = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q)
-    );
-  }, [products, debouncedQuery]);
-
-  if (status === "loading") {
-    return <p className="p-8 text-center text-gray-500">Loading products…</p>;
-  }
-
-  if (status === "error") {
-    return (
-      <p className="p-8 text-center text-red-600" role="alert">
-        Something went wrong loading products. Please try again.
-      </p>
-    );
-  }
+  }, [debouncedQuery]);
 
   return (
     <div>
@@ -73,13 +51,19 @@ export default function ProductGrid() {
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {status === "error" ? (
+        <p className="p-8 text-center text-red-600" role="alert">
+          Something went wrong loading products. Please try again.
+        </p>
+      ) : status === "loading" ? (
+        <p className="p-8 text-center text-gray-500">Loading products…</p>
+      ) : products.length === 0 ? (
         <p className="p-8 text-center text-gray-500">
           No products match “{debouncedQuery}”.
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {filtered.map((product) => (
+          {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

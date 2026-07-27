@@ -15,3 +15,9 @@ export const productQuerySchema = z.object({
 
 // A TypeScript type inferred FROM the schema — one source of truth.
 export type ProductQuery = z.infer<typeof productQuerySchema>;
+
+export const signupSchema = z.object({
+  email: z.email(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  name: z.string().trim().min(1).optional(),
+});

@@ -22,7 +22,7 @@ export default function CartWidget() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Open cart, ${count} item${count === 1 ? "" : "s"}`}
-        className="fixed right-4 top-4 z-30 rounded-full bg-blue-600 px-4 py-2 font-medium text-white shadow-lg hover:bg-blue-700"
+        className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
       >
         Cart ({count})
       </button>

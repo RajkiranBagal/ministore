@@ -12,11 +12,14 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 app = FastAPI(title="MiniStore Recommendations")
 
 # CORS: browsers block cross-origin requests by default (same-origin policy).
-# Our Next.js app (localhost:3000) is a DIFFERENT origin from this service
-# (localhost:8000), so the browser needs these headers to allow the fetch.
+# Allowed origins come from an env var so we permit localhost in dev and the
+# deployed Vercel domain in production (comma-separated).
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(
+    ","
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[o.strip() for o in allowed_origins],
     allow_methods=["GET"],
     allow_headers=["*"],
 )

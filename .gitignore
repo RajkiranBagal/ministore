@@ -50,3 +50,8 @@ storybook-static
 .windsurf/
 .claude/skills/
 skills-lock.json
+
+# Python (FastAPI service)
+.venv/
+__pycache__/
+*.pyc

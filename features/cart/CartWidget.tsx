@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useAppSelector } from "@/store/hooks";
 import CartDrawer from "./CartDrawer";
 
 export default function CartWidget() {
-  // `open` is UI state — it belongs to THIS component, not Redux. Notice the
-  // deliberate split: cart *data* lives in Redux (shared, global); drawer
-  // open/closed lives in local useState. That's the senior state answer.
   const [open, setOpen] = useState(false);
 
-  // A SELECTOR deriving a value: total item count = sum of quantities.
-  // Computed in the store read, so the badge updates automatically.
+  // True only on the client (after hydration), false during SSR — so the portal
+  // never runs where `document` doesn't exist. useSyncExternalStore gives us
+  // this WITHOUT calling setState in an effect (which the lint rule flags as a
+  // cascading-render smell).
+  const mounted = useSyncExternalStore(
+    () => () => {}, // subscribe: nothing to subscribe to (no-op)
+    () => true, // client snapshot
+    () => false // server snapshot
+  );
+
   const count = useAppSelector((state) =>
     state.cart.items.reduce((sum, item) => sum + item.quantity, 0)
   );
@@ -26,7 +32,15 @@ export default function CartWidget() {
       >
         Cart ({count})
       </button>
-      <CartDrawer open={open} onClose={() => setOpen(false)} />
+
+      {/* Render the drawer at document.body (NOT nested in the header) via a
+          portal. Fixes the invalid header-inside-header markup and lets the
+          modal escape any parent stacking/overflow context. */}
+      {mounted &&
+        createPortal(
+          <CartDrawer open={open} onClose={() => setOpen(false)} />,
+          document.body
+        )}
     </>
   );
 }

@@ -21,3 +21,14 @@ export const signupSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().trim().min(1).optional(),
 });
+
+export const checkoutSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        productId: z.number().int().positive(),
+        quantity: z.number().int().positive(),
+      })
+    )
+    .min(1, "Cart is empty"),
+});

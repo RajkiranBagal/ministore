@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import Link from "next/link";
 
 export default async function AccountPage() {
   const session = await auth();
@@ -14,6 +15,12 @@ export default async function AccountPage() {
           User ID: {session?.user?.id}
         </p>
       </div>
+      <Link
+        href="/account/orders"
+        className="mt-4 inline-block text-blue-600 hover:underline"
+      >
+        View order history →
+      </Link>
     </main>
   );
 }

@@ -25,7 +25,9 @@ model Product {
 
   orderItems  OrderItem[]
 
-  @@index([category])
+  // Composite index: serves "filter by category" (left-prefix rule) AND
+  // "filter by category, sort by rating" (the recommendations query).
+  @@index([category, rating])
   @@index([title])
 }
 

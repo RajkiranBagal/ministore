@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { changeQuantity, removeItem } from "./cartSlice";
 import { calculateTotals } from "./totals";
 import QuantityStepper from "@/components/QuantityStepper/QuantityStepper";
+import CheckoutButton from "./CheckoutButton";
 
 type CartDrawerProps = {
   open: boolean;
@@ -112,6 +113,9 @@ export default function CartDrawer({ open, onClose }: CartDrawerProps) {
             <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold">
               <span>Total</span>
               <span>${totals.total.toFixed(2)}</span>
+            </div>
+            <div className="mt-4">
+              <CheckoutButton />
             </div>
           </footer>
         )}

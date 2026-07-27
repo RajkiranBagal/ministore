@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProduct } from "@/lib/products";
 import AddToCartButton from "@/features/cart/AddToCartButton";
+import RelatedProducts from "@/features/products/RelatedProducts";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -69,6 +70,7 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+      <RelatedProducts productId={product.id} />
     </main>
   );
 }

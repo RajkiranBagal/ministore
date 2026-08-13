@@ -1,3 +1,13 @@
+// ─── Money math tests ───────────────────────────────────────────────────────
+// The easiest tests to write in the whole codebase, because calculateTotals is
+// a pure function: no store, no mocks, no rendering, no setup. Call it with
+// inputs, assert on the output.
+//
+// That ease is the argument for keeping business rules in pure functions rather
+// than inside components. Testing "does an 8% tax apply?" through a rendered
+// cart drawer would need a Redux provider, a mock store and a DOM query, and
+// would still be testing the rule less directly.
+
 import { calculateTotals } from "./totals";
 
 // describe() groups related tests under one label. Purely organizational.
@@ -25,6 +35,9 @@ describe("calculateTotals", () => {
     expect(total).toBeCloseTo(108, 2); // 100 + 8
   });
 
+  // The most valuable test here: it pins down ORDER OF OPERATIONS. Taxing
+  // before discounting would also produce plausible-looking numbers, just
+  // wrong ones — the kind of bug that ships quietly and overcharges people.
   test("applies a 10% coupon before tax", () => {
     const items = [{ price: 100, quantity: 2 }]; // subtotal 200
     const { subtotal, discount, tax, total } = calculateTotals(items, 10);

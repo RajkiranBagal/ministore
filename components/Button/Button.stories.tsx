@@ -1,3 +1,12 @@
+// ─── Button stories ─────────────────────────────────────────────────────────
+// A "story" is one component in one state. Stories serve three purposes at
+// once: a workbench for building the component in isolation, living
+// documentation of its variants, and — via addon-vitest — a smoke test that
+// each state still renders.
+//
+// This is the CSF3 format (Component Story Format 3): stories are plain
+// objects, not functions. Older examples you'll find online use CSF2 functions.
+
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import Button from "./Button";
 
@@ -7,6 +16,8 @@ const meta: Meta<typeof Button> = {
   title: "Components/Button",
   component: Button,
   tags: ["autodocs"], // auto-generates a documentation page from your props
+  // Default args inherited by EVERY story below, so none of them has to repeat
+  // `children`. Individual stories override selectively.
   args: {
     children: "Click me",
   },

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { checkoutSchema } from "@/lib/validation";
 import { errorResponse } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -11,6 +13,12 @@ export async function POST(request: Request) {
     return errorResponse("Not authenticated", 401);
   }
   const userId = session.user.id;
+
+  // Rate-limit checkout: max 10 per minute per IP.
+  const limit = rateLimit(`checkout:${clientIp(request)}`, 10, 60_000);
+  if (!limit.ok) {
+    return errorResponse("Too many requests. Please try again later.", 429);
+  }
 
   const body = await request.json().catch(() => null);
   const parsed = checkoutSchema.safeParse(body);
@@ -65,6 +73,10 @@ export async function POST(request: Request) {
       totalCents: order.totalCents,
       itemCount: order.items.length,
     });
+
+    // Checkout decremented product stock → invalidate the cached product data
+    // so product pages reflect the new stock on the next request.
+    revalidateTag("products", "max");
 
     return NextResponse.json(
       { id: order.id, totalCents: order.totalCents, status: order.status },

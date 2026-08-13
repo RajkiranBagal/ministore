@@ -16,6 +16,18 @@ generator client {
   output   = "../lib/generated/prisma"
 }
 
+// Generates the type definitions the Pothos Prisma plugin needs to map our
+// models onto GraphQL types (lib/graphql/builder.ts).
+//
+// `clientOutput` must point at the generated Prisma client ABOVE — because that
+// client lives at a custom path, Pothos can't find it by the usual convention.
+// The path is relative to this generator's own `output`.
+generator pothos {
+  provider     = "prisma-pothos-types"
+  output       = "../lib/generated/pothos/index.ts"
+  clientOutput = "../prisma"
+}
+
 datasource db {
   provider = "postgresql"
   // NOTE: no `url` here. The connection string is injected by prisma.config.ts

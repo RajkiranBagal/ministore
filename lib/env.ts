@@ -13,8 +13,8 @@ import { z } from "zod";
 // clear message instead of a cryptic error deep inside a request.
 //
 // Note: AUTH_SECRET is validated by Auth.js at runtime (and isn't needed at
-// build time), and NEXT_PUBLIC_RECOMMENDATIONS_API_URL is optional (graceful
-// fallback), so the one hard requirement everywhere is DATABASE_URL.
+// build time), and RECOMMENDATIONS_API_URL is optional (the `related` resolver
+// returns [] without it), so the one hard requirement everywhere is DATABASE_URL.
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
 });

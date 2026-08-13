@@ -1,64 +1,83 @@
 // ─── "You might also like" ──────────────────────────────────────────────────
-// The one place the Next app talks to the Python service. This is a CROSS-
-// ORIGIN browser fetch (Vercel → Render), which is why services/recommendations
-// configures CORS with an ALLOWED_ORIGINS list — without our domain in it, the
-// browser blocks the response.
+// MIGRATED TO GRAPHQL, and this is the migration that actually pays for itself.
 //
-// Design point worth absorbing: a second service means a second thing that can
-// be down. Everything here is built so that failure is invisible — see the
-// early `return null` below.
+// Before: the browser called the Python service DIRECTLY, cross-origin
+// (Vercel → Render). That required three things we no longer need:
+//
+//   1. CORS on the Python side — the browser was a foreign origin, so
+//      services/recommendations had to maintain an ALLOWED_ORIGINS list.
+//   2. NEXT_PUBLIC_RECOMMENDATIONS_API_URL — the service URL was inlined into
+//      the client bundle at build time, i.e. published to anyone who looked.
+//   3. A second public endpoint to think about.
+//
+// After: the browser calls our own same-origin /api/graphql, and the `related`
+// resolver calls the Python service server-to-server. The URL moved to a
+// server-only env var (RECOMMENDATIONS_API_URL, no NEXT_PUBLIC_ prefix) and is
+// no longer in the bundle at all.
+//
+// The graceful-degradation posture is unchanged: if the recommendations service
+// is unreachable, the resolver returns [] and this renders null.
 "use client";
 
 import { useEffect, useState } from "react";
 import { Product } from "./types";
+import { gqlRequest } from "@/lib/graphql/client";
 import ProductCard from "./ProductCard";
 
+// One query spanning two backends: `related` is ranked by the Python service,
+// and the product fields come from Postgres. The client neither knows nor cares
+// that two systems were involved — which is the actual selling point of a
+// graph, as opposed to shape flexibility.
+const RELATED_QUERY = /* GraphQL */ `
+  query Related($id: Int!) {
+    product(id: $id) {
+      related {
+        id
+        title
+        description
+        price
+        thumbnail
+        category
+        rating
+      }
+    }
+  }
+`;
+
+type RelatedResult = { product: { related: Product[] } | null };
+
 export default function RelatedProducts({ productId }: { productId: number }) {
-  // NEXT_PUBLIC_ is the prefix that lets an env var reach the browser. Next
-  // inlines it into the bundle at BUILD time — so it is public by definition,
-  // and a secret must never carry this prefix. It's also why lib/env.ts doesn't
-  // require this one: the app must build and run without the Python service.
-  const apiBase = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL;
   const [recs, setRecs] = useState<Product[]>([]);
-  // Derive the initial status instead of setting it in the effect (which the
-  // lint rule flags): if the API URL is missing, we're already in "error".
-  const [status, setStatus] = useState<"loading" | "error" | "done">(
-    apiBase ? "loading" : "error"
-  );
+  // No env check needed in the initial state any more — the endpoint is our own
+  // origin and always exists. Whether the upstream Python service is configured
+  // is now a server-side concern, invisible from here.
+  const [status, setStatus] = useState<"loading" | "error" | "done">("loading");
 
   useEffect(() => {
-    if (!apiBase) return; // env missing -> status is already "error"
     let cancelled = false;
-    fetch(`${apiBase}/recommendations/${productId}?limit=4`)
-      .then((res) => {
-        // fetch does NOT reject on 404 or 500 — it only rejects on network
-        // failure. Without this explicit check, an error page would sail into
-        // .json() and fail confusingly. Easy mistake to make.
-        if (!res.ok) throw new Error(String(res.status));
-        return res.json();
-      })
-      .then((data: Product[]) => {
-        if (!cancelled) {
-          setRecs(data);
-          setStatus("done");
-        }
+
+    gqlRequest<RelatedResult>(RELATED_QUERY, { id: productId })
+      .then((data) => {
+        if (cancelled) return;
+        setRecs(data.product?.related ?? []);
+        setStatus("done");
       })
       .catch(() => {
         if (!cancelled) setStatus("error");
       });
+
     return () => {
       cancelled = true;
     };
-  }, [productId, apiBase]);
+  }, [productId]);
 
   // Graceful fallback: if the FastAPI service is down or returns nothing,
   // render nothing — a separate service failing must NOT break the page.
   //
-  // This is the whole graceful-degradation strategy in three lines. The
-  // recommendations section is an enhancement, not a requirement, so its
-  // failure mode should be "the section isn't there", never an error message
-  // or a broken product page. Note that returning null also covers the
-  // legitimate empty case (a product that's alone in its category) — an empty
+  // Note this now catches the failure at two levels: the resolver already
+  // swallows an upstream outage and returns [], and this catches any failure of
+  // our own endpoint. Either way the section simply isn't there. It also covers
+  // the legitimate empty case (a product alone in its category) — an empty
   // "You might also like" heading would look broken.
   if (status === "error" || (status === "done" && recs.length === 0)) {
     return null;

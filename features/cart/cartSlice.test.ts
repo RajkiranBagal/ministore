@@ -1,3 +1,11 @@
+// ─── Cart reducer tests ─────────────────────────────────────────────────────
+// Reducers are pure functions — (state, action) => newState — so they test
+// without a store, a Provider, or a rendered component. Call the reducer
+// directly with a state and an action, then assert on what comes back.
+//
+// This is the main practical argument for keeping logic in reducers rather than
+// in component event handlers: the rules become testable in isolation.
+
 import cartReducer, {
   addItem,
   removeItem,

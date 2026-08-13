@@ -1,3 +1,8 @@
+// ─── /signup ────────────────────────────────────────────────────────────────
+// Registration is a TWO-STEP flow, because Auth.js only knows how to sign
+// people in — creating the account is our own endpoint. So: POST to
+// /api/auth/register, then immediately sign in with the same credentials, so
+// the user lands logged in rather than being bounced to a login form.
 "use client";
 
 import { useState } from "react";
@@ -12,16 +17,21 @@ export default function SignupPage() {
   const [pending, setPending] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+    e.preventDefault(); // suppress the browser's own form submit
     setError(null);
     setPending(true);
 
+    // Uncontrolled form — values are read at submit time rather than tracked
+    // in state on every keystroke. See app/login/page.tsx for the same pattern.
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email"));
     const password = String(form.get("password"));
     const name = String(form.get("name"));
 
-    // 1. Create the account via our signup API.
+    // ── Step 1: create the account ────────────────────────────────────────
+    // `name || undefined` matters: an untouched optional input yields "", and
+    // the Zod schema requires a non-empty string IF the key is present. Sending
+    // undefined omits the key entirely, which is what "optional" means.
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -29,13 +39,17 @@ export default function SignupPage() {
     });
 
     if (!res.ok) {
+      // Surface the server's own message ("An account with this email already
+      // exists") rather than a generic one — unlike login, there's nothing to
+      // leak here, since the duplicate-email case is information the user needs.
+      // `.catch(() => ({}))` guards against a non-JSON error body.
       const data = await res.json().catch(() => ({}));
       setPending(false);
       setError(data.error ?? "Could not create account");
       return;
     }
 
-    // 2. Account created -> log them straight in.
+    // ── Step 2: log them straight in ──────────────────────────────────────
     const login = await signIn("credentials", {
       email,
       password,
@@ -44,10 +58,13 @@ export default function SignupPage() {
 
     setPending(false);
     if (login?.error) {
+      // Rare but possible: the account exists now, only the sign-in failed.
+      // Say so precisely — telling them signup failed would be a lie that leads
+      // them to retry and hit "email already exists".
       setError("Account created, but sign-in failed. Try logging in.");
     } else {
       router.push("/");
-      router.refresh();
+      router.refresh(); // re-render Server Components so <Header> sees the session
     }
   }
 
@@ -104,6 +121,9 @@ export default function SignupPage() {
             name="password"
             type="password"
             required
+            // Mirrors `password: z.string().min(8)` in lib/validation.ts. This
+            // is a UX convenience only — the browser can be bypassed trivially,
+            // so the server schema is the real enforcement. Change both together.
             minLength={8}
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />

@@ -3,57 +3,105 @@
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
+// The schema is the single source of truth for the database. Change it, then
+// run `npx prisma migrate dev --name <change>` to generate SQL and apply it.
+
 generator client {
+  // Prisma 7's TypeScript client generator.
   provider = "prisma-client"
+  // CUSTOM OUTPUT PATH — the generated client lands in lib/generated/prisma
+  // (gitignored, rebuilt by `prisma generate` on every postinstall) instead of
+  // node_modules/@prisma/client. Consequence: import from
+  // "@/lib/generated/prisma/client", NOT "@prisma/client".
   output   = "../lib/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+  // NOTE: no `url` here. The connection string is injected by prisma.config.ts
+  // at the repo root, which loads it from DATABASE_URL via dotenv. If a Prisma
+  // CLI command can't find the database, that file is where to look.
 }
 
+// ─── Product ────────────────────────────────────────────────────────────────
+// Public catalog data, seeded from DummyJSON by prisma/seed.ts.
 model Product {
+  // An auto-incrementing int is fine here precisely BECAUSE the data is public:
+  // there's no harm in someone guessing that /products/43 exists. Contrast with
+  // User/Order below, which use cuids for exactly that reason.
   id          Int      @id @default(autoincrement())
   title       String
   description String
+  // Money as an INTEGER count of cents — never Float. Floats can't represent
+  // 0.1 exactly, so repeated arithmetic drifts (0.1 + 0.2 = 0.30000000000000004).
+  // Integers make totals exact; we divide by 100 only when displaying.
   priceCents  Int
   stock       Int      @default(0)
   category    String
   thumbnail   String
-  rating      Float    @default(0)
+  rating      Float    @default(0) // a genuine measurement, so Float is right
   createdAt   DateTime @default(now())
 
+  // The reverse side of OrderItem's relation. This field creates no column —
+  // it's a Prisma-level convenience that enables `include: { orderItems: … }`.
   orderItems  OrderItem[]
 
   // Composite index: serves "filter by category" (left-prefix rule) AND
   // "filter by category, sort by rating" (the recommendations query).
+  //
+  // The left-prefix rule is the thing to remember: an index on (a, b) also
+  // works for queries on `a` alone, but NOT for `b` alone — like a phone book
+  // sorted by surname then first name. That's why an earlier single-column
+  // index on `category` was dropped as redundant when this one was added.
   @@index([category, rating])
+  // Supports sorting/lookups by title. Note it does NOT help the search box:
+  // `contains` compiles to ILIKE '%q%', and a leading wildcard can't use a
+  // B-tree index. Postgres full-text search (tsvector) is the upgrade path.
   @@index([title])
 }
 
+// ─── User ───────────────────────────────────────────────────────────────────
 model User {
+  // cuid, not autoincrement: sequential ids in URLs leak how many users you
+  // have and let someone walk /users/1, /users/2… A cuid is unguessable.
   id           String   @id @default(cuid())
+  // @unique creates a database-level constraint. The duplicate check in the
+  // register route is for a friendly error message; THIS is the guarantee that
+  // holds even when two signups race.
   email        String   @unique
+  // The bcrypt hash — never the password. Named "…Hash" so no one is tempted.
   passwordHash String
-  name         String?
+  name         String?  // nullable: `?` means optional at signup
   createdAt    DateTime @default(now())
 
   orders       Order[]
 }
 
+// ─── Order ──────────────────────────────────────────────────────────────────
 model Order {
   id         String      @id @default(cuid())
   userId     String
+  // Declaring the relation gives us a real foreign key. Default referential
+  // action is ON DELETE RESTRICT, so a user with orders can't be deleted out
+  // from under them, leaving orphaned rows.
   user       User        @relation(fields: [userId], references: [id])
+  // A plain String rather than an enum — simple, but it means "pendign" would
+  // be accepted. An enum would be the stricter choice. Orders stay "pending"
+  // today because there's no payment integration yet.
   status     String      @default("pending")
   totalCents Int
   createdAt  DateTime    @default(now())
 
   items      OrderItem[]
 
+  // Order history queries are always `where: { userId }` — without this index
+  // Postgres would scan every order in the table to find one user's.
   @@index([userId])
 }
 
+// ─── OrderItem ──────────────────────────────────────────────────────────────
+// The join between an Order and the Products in it. It's a model rather than a
+// plain many-to-many because it carries its own data: quantity and price.
 model OrderItem {
   id             String  @id @default(cuid())
   orderId        String
@@ -61,8 +109,12 @@ model OrderItem {
   productId      Int
   product        Product @relation(fields: [productId], references: [id])
   quantity       Int
+  // THE PRICE AT PURCHASE TIME, copied here at checkout. Deliberate
+  // duplication of Product.priceCents: joining to the live product instead
+  // would mean tomorrow's price change silently rewrites yesterday's receipt.
+  // Historical records must be immutable.
   unitPriceCents Int
 
-  @@index([orderId])
-  @@index([productId])
+  @@index([orderId])   // "give me this order's lines"
+  @@index([productId]) // "which orders contain this product"
 }

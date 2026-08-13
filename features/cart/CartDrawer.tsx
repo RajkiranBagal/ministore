@@ -1,3 +1,9 @@
+// ─── Cart drawer ────────────────────────────────────────────────────────────
+// The slide-over panel listing cart lines, totals, and the checkout button.
+// Rendered into document.body by CartWidget via a portal — see that file for
+// why. This component is "controlled": it owns no open/closed state itself,
+// receiving `open` and `onClose` as props, so the parent stays the one source
+// of truth for whether the drawer is showing.
 "use client";
 
 import Image from "next/image";
@@ -18,12 +24,18 @@ export default function CartDrawer({ open, onClose }: CartDrawerProps) {
   const dispatch = useAppDispatch();
 
   // Live totals — recomputed every render from current items. Pure function,
-  // so this is cheap and predictable.
+  // so this is cheap and predictable. No useMemo: memoising an O(n) sum over a
+  // handful of cart lines would cost more in complexity than it saves.
   const totals = calculateTotals(items);
 
   return (
     <>
-      {/* Backdrop: click outside to close */}
+      {/* Backdrop: click outside to close.
+          aria-hidden hides this purely decorative div from screen readers —
+          they get the "Close cart" button instead. Note the panel stays mounted
+          when closed (we animate opacity/transform rather than unmounting), so
+          `pointer-events-none` is what stops an invisible backdrop from
+          swallowing clicks on the rest of the page. */}
       <div
         onClick={onClose}
         aria-hidden="true"
@@ -32,7 +44,15 @@ export default function CartDrawer({ open, onClose }: CartDrawerProps) {
         }`}
       />
 
-      {/* Sliding panel */}
+      {/* Sliding panel.
+          role="dialog" + aria-modal tell assistive tech this is a modal layer;
+          aria-label names it, since the visible "Your Cart" heading isn't
+          automatically used as the dialog's name.
+
+          Worth knowing what's still missing for a fully accessible modal:
+          focus is not trapped inside the panel, focus isn't restored to the
+          cart button on close, and Escape doesn't close it. Those are the
+          natural next accessibility improvements. */}
       <aside
         role="dialog"
         aria-modal="true"
@@ -77,9 +97,15 @@ export default function CartDrawer({ open, onClose }: CartDrawerProps) {
                       ${item.price.toFixed(2)}
                     </p>
                     <div className="mt-1 flex items-center justify-between">
+                      {/* QuantityStepper is a generic, Redux-free component in
+                          components/. It reports a new number and this parent
+                          decides what that means — dispatching to the store.
+                          That separation is why it's reusable and storybook-able. */}
                       <QuantityStepper
                         quantity={item.quantity}
                         onChange={(next) =>
+                          // Stepping down to 0 removes the line entirely; that
+                          // rule lives in the reducer, not here.
                           dispatch(
                             changeQuantity({ id: item.id, quantity: next })
                           )

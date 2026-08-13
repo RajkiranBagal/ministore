@@ -1,10 +1,31 @@
+/* ─── Global stylesheet ─────────────────────────────────────────────────────
+   Imported once, by app/layout.tsx, so these rules apply everywhere.
+
+   Tailwind v4 configures itself in CSS rather than in a tailwind.config.js —
+   that JS config file is gone in v4, so this file IS the Tailwind config.      */
+
+/* Pulls in Tailwind's reset plus its utility engine. In v4 this single
+   @import replaces v3's three @tailwind base/components/utilities lines. */
 @import "tailwindcss";
 
+/* Plain CSS custom properties holding the light-mode palette. Defining them on
+   :root means any rule below can reference them, and the media query further
+   down can swap the values without touching anything that uses them. */
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
+/* @theme is the Tailwind v4 mechanism for registering design tokens: names
+   declared here become real utility classes. `--color-background` generates
+   bg-background, text-background, border-background, and so on.
+
+   The `inline` keyword tells Tailwind to resolve these to the CSS variable
+   reference itself rather than the value at build time — which is precisely
+   what lets the dark-mode block below re-point them at runtime.
+
+   --font-sans / --font-mono connect to the CSS variables that next/font
+   created in layout.tsx, so `font-sans` uses self-hosted Geist. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -12,6 +33,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Dark mode driven by the OS/browser setting, with no JS and no toggle. Because
+   only the two variables change, every rule and utility built on them updates
+   automatically. Note this is the `prefers-color-scheme` strategy — a manual
+   in-app toggle would instead need Tailwind's `class`/`data-attribute` mode. */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -22,5 +47,13 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Use the Geist font that next/font loads and self-hosts in layout.tsx.
+     This was previously a hardcoded `Arial, Helvetica, sans-serif` left over
+     from create-next-app, which silently overrode Geist — the font was being
+     downloaded on every build and then never used.
+
+     The variable is set on <html> by geistSans.variable and inherits down
+     here. It resolves to Geist plus the fallback metrics next/font generates,
+     so there's no layout shift while the font loads. */
+  font-family: var(--font-geist-sans);
 }

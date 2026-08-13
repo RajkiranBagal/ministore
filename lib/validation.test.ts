@@ -1,3 +1,12 @@
+// ─── Validation schema tests ────────────────────────────────────────────────
+// These schemas are the app's boundary against hostile input, so the REJECTION
+// cases matter more than the acceptance ones. Note the pattern below: for every
+// "accepts valid X" there are several "rejects malformed X" tests.
+//
+// Writing them this way documents the threat model — an empty cart, a negative
+// quantity, a too-short password — and each test is a regression guard against
+// someone loosening a rule later without realising what it was protecting.
+
 import {
   checkoutSchema,
   signupSchema,

@@ -13,4 +13,4 @@ One file, `page.tsx`, Server Component. Two exports: `generateMetadata({params})
 ## Client islands rendered here
 
 - `AddToCartButton` (`@/features/cart`) — dispatches the Redux `addItem`.
-- `RelatedProducts` (`@/features/products`) — cross-origin fetch to the FastAPI service via `NEXT_PUBLIC_RECOMMENDATIONS_API_URL`; renders `null` on any failure, so the page degrades gracefully when that service is down.
+- `RelatedProducts` (`@/features/products`) — same-origin `product(id) { related { … } }` query to `/api/graphql`; the resolver calls the FastAPI service server-side. Renders `null` on any failure, so the page degrades gracefully when that service is down.

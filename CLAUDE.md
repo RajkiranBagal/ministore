@@ -11,7 +11,7 @@ Deeper docs live in per-folder `CLAUDE.md` files — they load automatically whe
 | Path | What | Detail |
 |---|---|---|
 | `app/` | routes + root layout | `app/CLAUDE.md` |
-| `app/api/` | 4 route handlers | `app/api/CLAUDE.md` |
+| `app/api/` | 5 route handlers (incl. `/api/graphql`) | `app/api/CLAUDE.md` |
 | `features/` | `"use client"` domain UI (cart, products, auth) | `features/CLAUDE.md` |
 | `components/` | generic Redux-free UI | `components/CLAUDE.md` |
 | `lib/` | server utils + data access | `lib/CLAUDE.md` |

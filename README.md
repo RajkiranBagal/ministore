@@ -25,10 +25,10 @@ A polyglot, multi-service system — each part deployed independently:
 ```
                     ┌─────────────────────────────┐
   Browser  ───────► │  Next.js frontend (Vercel)  │
-                    └──────────┬──────────┬────────┘
-                               │          │
-        Next API routes +      │          │   cross-origin fetch
-        Server Components      │          │   (recommendations)
+   (same origin     └──────────┬──────────┬────────┘
+    only)                      │          │
+        Server Components +    │          │  server-to-server fetch
+        REST + /api/graphql    │          │  (GraphQL `related` resolver)
                                ▼          ▼
                     ┌────────────────┐   ┌──────────────────────────┐
                     │ PostgreSQL     │◄──┤ FastAPI service (Render)  │
@@ -38,7 +38,7 @@ A polyglot, multi-service system — each part deployed independently:
 
 - **Next.js** owns products, auth, cart, and orders (Route Handlers + Server Components + Prisma).
 - **FastAPI** owns recommendations (its own deploy, reads the same Postgres).
-- Both share the **Neon** database; the frontend talks to Next's own API for most things and to FastAPI for recommendations.
+- Both share the **Neon** database. The browser only ever talks to the Next app; the FastAPI service is reached server-side, so its URL isn't in the client bundle.
 
 ## Tech stack & why
 
@@ -53,6 +53,7 @@ A polyglot, multi-service system — each part deployed independently:
 | **Zod** | Runtime validation of every API input — types alone don't protect an endpoint at runtime. |
 | **Redux Toolkit** | Shared cart state (slice + Immer); UI-only state stays in local `useState`. |
 | **FastAPI (Python)** | The recommendations microservice — Pydantic models, async, parameterized SQL, auto Swagger docs. Demonstrates a polyglot architecture. |
+| **GraphQL (Yoga + Pothos)** | Added *alongside* REST, not replacing it, to test where a graph actually earns its keep. It pays off on `Product.related`, where one query composes Postgres data with a ranking from the Python service; on a flat product list it's a lateral move. Also cost us something REST gave free — a recursive schema needs explicit depth limiting. |
 | **Tailwind CSS** | Fast, responsive styling co-located with markup. |
 | **Storybook** | Components documented in isolation, with the a11y addon. |
 | **Jest + React Testing Library** | Unit tests for logic/reducers; behavior tests for components. |
@@ -68,6 +69,7 @@ app/                  Next.js routes (App Router)
   page.tsx            home (product grid)
   products/[id]/      server-rendered product detail
   api/products/       REST products API (validated search + pagination)
+  api/graphql/        GraphQL Yoga endpoint (read-only, depth-limited)
   api/orders/         checkout (POST) — DB transaction
   api/auth/           Auth.js catch-all + signup (register)
   login/ signup/      auth pages
@@ -75,7 +77,7 @@ app/                  Next.js routes (App Router)
 auth.ts, auth.config.ts, proxy.ts   auth config + route protection
 components/           reusable design-system UI + stories + tests
 features/
-  products/           grid, card, RelatedProducts (FastAPI-backed), types
+  products/           grid, card, RelatedProducts (GraphQL-backed), types
   cart/               cartSlice, CartDrawer, CheckoutButton, calculateTotals, tests
   auth/               SignOutButton
 lib/
@@ -85,6 +87,7 @@ lib/
   api-response.ts     consistent error envelope
   logger.ts           structured JSON logging
   rate-limit.ts       in-memory rate limiter
+  graphql/            Pothos schema/builder/context + a 20-line browser client
 prisma/               schema, migrations, seed
 store/                Redux store, typed hooks, Providers
 services/
@@ -96,12 +99,13 @@ render.yaml           Render blueprint for the FastAPI service
 
 - **Money as integer cents** — no floating-point money; dollars are a display concern.
 - **DB model ≠ API response** — data functions map DB rows to a clean response shape (DTO).
-- **Server vs client boundaries** — the client grid calls the REST API; server components read the DB/session directly.
+- **Server vs client boundaries** — client islands call HTTP APIs; server components read the DB/session directly. There are only two browser-side queries in the whole app, which is itself the main finding of the GraphQL experiment.
 - **Auth** — bcrypt hashes, JWT sessions in an httpOnly cookie, route protection via `proxy.ts` (edge-safe config split), rate-limited endpoints.
 - **Transactions** — checkout runs in a `prisma.$transaction`: server-side pricing, an **atomic conditional stock decrement** to prevent overselling under concurrency, and full rollback on any failure.
 - **Authorization** — order history is scoped to the session's user id (users see only their own orders); orders fetched with a nested `include` (no N+1).
 - **Reliability** — consistent error envelope + structured JSON logging.
-- **Polyglot integration** — the FastAPI service is called cross-origin (CORS configured), with a `NEXT_PUBLIC_` env var and **graceful degradation** if the service is down.
+- **Polyglot integration** — the FastAPI service is composed into the GraphQL schema server-side (`Product.related`): Python supplies the ranking, Postgres supplies the data, the client sees one query. Server-only env var, 3 s timeout, and **graceful degradation** to an empty list if the service is down.
+- **GraphQL hardening** — the schema is recursive (`related → related`), so the endpoint is depth-limited to 4. Without it a nested query fanned out to ~256 upstream calls and took 15.5 s; that's the safety property a single-purpose REST route gives away for free.
 - **Validated inputs** everywhere (Zod / Pydantic); **accessibility** (semantic roles, aria-labels, focus rings, Storybook a11y).
 
 ## Getting started
@@ -116,7 +120,7 @@ npm install
 # .env
 #   DATABASE_URL="postgresql://…"
 #   AUTH_SECRET="…"                            # openssl rand -base64 33
-#   NEXT_PUBLIC_RECOMMENDATIONS_API_URL="http://localhost:8000"
+#   RECOMMENDATIONS_API_URL="http://localhost:8000"   # server-only, optional
 
 npx prisma migrate dev     # create tables
 npm run db:seed            # seed products

@@ -35,4 +35,6 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-The Next app reaches it from the **browser** (`features/products/RelatedProducts.tsx`, cross-origin) using `NEXT_PUBLIC_RECOMMENDATIONS_API_URL` — which is why CORS matters and why `lib/env.ts` doesn't require that var. Adding a new frontend origin means updating `ALLOWED_ORIGINS` in `render.yaml`.
+The Next app now reaches it **server-to-server**, from the `Product.related` GraphQL resolver (`lib/graphql/schema.ts`), using `RECOMMENDATIONS_API_URL` — server-only, no `NEXT_PUBLIC_` prefix, and still not required by `lib/env.ts` (the resolver returns `[]` without it).
+
+It used to be a cross-origin call straight from the browser, which is why `ALLOWED_ORIGINS`/CORS exists in `render.yaml`. That requirement is gone now — the only caller is the Next server — but the config is left in place rather than removed as a drive-by.

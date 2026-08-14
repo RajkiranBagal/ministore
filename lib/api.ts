@@ -1,47 +1,60 @@
-// ─── Browser-side API client ────────────────────────────────────────────────
+// ─── Browser-side data fetching ─────────────────────────────────────────────
 // ⚠️  CLIENT-ONLY. This is one of only two files in lib/ meant for the browser
 // (the other is useDebounce.ts) — everything else here is server-only.
 //
-// The give-away is the relative URL below: "/api/products" resolves against the
-// current page's origin, which only exists in a browser. Server Components skip
-// this module entirely and query Postgres directly (see lib/products.ts).
+// MIGRATED TO GRAPHQL. This used to call `GET /api/products?limit=24&q=…`. That
+// REST route still exists and still works — nothing was deleted — but the
+// product grid now goes through /api/graphql instead.
+//
+// Honest assessment of what the migration bought us here: very little. The REST
+// endpoint already returned a tight 7-field DTO, so there was no over-fetching
+// to fix. The real win is on the `related` field (see RelatedProducts.tsx),
+// where one query now spans two services. For a flat list like this, GraphQL is
+// a lateral move — which is a useful thing to have measured rather than assumed.
 
 import { Product } from "@/features/products/types";
+import { gqlRequest } from "@/lib/graphql/client";
 
-// The API wraps the array: { products, total, skip, limit }.
-// We type that envelope, then return just the array to callers.
-//
-// Typing the response is what turns a runtime surprise into a compile error:
-// `res.json()` returns `any`, so without this annotation TypeScript would
-// happily accept `data.produtcs` and hand you undefined at runtime.
-type ProductsResponse = {
-  products: Product[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
+// The selection set is explicit, which is the one durable difference from REST:
+// the response shape is decided HERE, by the caller, rather than fixed by the
+// server. Adding a field to the schema doesn't change this payload by a byte.
+const PRODUCTS_QUERY = /* GraphQL */ `
+  query Products($q: String, $limit: Int) {
+    products(q: $q, limit: $limit) {
+      products {
+        id
+        title
+        description
+        price
+        thumbnail
+        category
+        rating
+      }
+      pagination {
+        total
+        totalPages
+      }
+    }
+  }
+`;
+
+type ProductsResult = {
+  products: {
+    products: Product[];
+    pagination: { total: number; totalPages: number };
   };
 };
 
-// Now hits OUR API (a relative URL — same origin), and passes the search
-// query to the server so filtering happens in the database.
+// Signature unchanged from the REST version, deliberately — ProductGrid needed
+// no edits at all, which keeps the before/after honestly comparable.
 export async function fetchProducts(query = ""): Promise<Product[]> {
-  // URLSearchParams handles the encoding, so a search for "a&b" or "50% off"
-  // can't break the URL. Never build query strings by concatenation.
-  const params = new URLSearchParams({ limit: "24" });
-  // Only send `q` when there's something to search for — an empty q= would
-  // filter on the empty string rather than returning everything.
-  if (query.trim()) params.set("q", query.trim());
+  // Variables, not string interpolation into the query document. Same
+  // discipline as SQL placeholders: the document stays static and the value
+  // travels separately, so a search for `") { id } }` is data, not syntax.
+  const data = await gqlRequest<ProductsResult>(PRODUCTS_QUERY, {
+    q: query.trim() || null,
+    limit: 24,
+  });
 
-  const res = await fetch(`/api/products?${params.toString()}`);
-  // fetch only rejects on network failure, NOT on 4xx/5xx — so an error status
-  // must be checked explicitly or a 500's HTML body ends up in .json().
-  if (!res.ok) {
-    throw new Error(`Failed to fetch products: ${res.status}`);
-  }
-  const data: ProductsResponse = await res.json();
-  // Unwrap the envelope. Callers want products; the pagination metadata isn't
-  // used yet (the grid shows a single page of 24) — surface it here when it is.
-  return data.products;
+  return data.products.products;
 }

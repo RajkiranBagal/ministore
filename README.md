@@ -1,9 +1,31 @@
 # MiniStore
 
-A small but production-shaped **full-stack, polyglot** e-commerce storefront: a product catalog served from its own PostgreSQL database, user accounts with authentication, a checkout backed by database transactions, order history, and a **Python FastAPI microservice** for recommendations. Built to exercise the modern React/Next.js **and** backend toolchain end to end.
+A full-stack storefront built with Next.js 16, React 19, Prisma and Postgres, plus a separate Python FastAPI service for recommendations.
 
-**Live demo:** [ministore-pi.vercel.app](https://ministore-pi.vercel.app/)
-**Recommendations service (FastAPI):** [ministore-recommendations.onrender.com/docs](https://ministore-recommendations.onrender.com/docs)
+[![CI](https://github.com/RajkiranBagal/ministore/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RajkiranBagal/ministore/actions/workflows/ci.yml)
+
+**[▶ Live demo](https://ministore-pi.vercel.app/)** · [Recommendations API docs (FastAPI)](https://ministore-recommendations.onrender.com/docs)
+
+> The recommendations service runs on Render's free tier, so the first request after it
+> has been idle can take up to a minute.
+
+![MiniStore catalog page: product grid with search, prices, ratings and add-to-cart buttons](docs/screenshot.png)
+
+## Highlights
+
+- **Checkout cannot oversell.** Each order runs in one `prisma.$transaction` with prices
+  set on the server. Stock is decremented with a conditional
+  `updateMany({ where: { stock: { gte: quantity } } })`, so two concurrent orders cannot
+  both take the last unit.
+- **Two services in two languages, deployed separately.** The Next.js app is on Vercel, and
+  the FastAPI recommendations service is on Render. Both read the same Neon Postgres
+  database.
+- **Auth.js v5** handles accounts, with bcrypt-hashed passwords and JWT sessions. Signup is
+  rate-limited to 5 requests a minute per IP, and checkout to 10.
+- **28 Jest tests** cover cart totals, the Redux cart slice, validation, rate limiting and
+  components. Shared UI components are documented in Storybook with the a11y addon.
+- **Production deploys are gated by CI.** The Vercel deploy job runs only on `main`, after
+  lint, tests and a production build pass.
 
 ---
 
